@@ -98,7 +98,44 @@ itemFrequency(trans2)
 itemFrequencyPlot(trans2, names = TRUE, topN = 20)
 image(sample(trans2, 10000))
   
-RulesName<- apriori (trans2, parameter = list(supp = 0.0001, conf = 0.8))
+RulesName<- apriori (trans2, parameter = list(supp = 0.0005, conf = 0.5))
 summary(RulesName)
-inspect(RulesName)
-                     
+inspect(sort(RulesName,by = "lift", 5))
+
+sortedrulesbylift<- sort(RulesName,by = "lift")
+
+inspect(sortedrulesbylift)[1:10,]
+
+table(is.redundant(RulesName))
+
+plot(RulesName)
+plot(RulesName, engine = "interactive")
+plot(RulesName, method = "two-key plot")
+
+inspectDT(RulesName)
+
+# Epic 3 categories -------------------------------------------------------
+
+
+Sku_category<-read.csv("Data/sku_category.csv")
+head(Sku_category)
+trans3@itemInfo$category <- trans3@itemInfo$labels
+
+table(trans3@itemInfo$category %in% Sku_category$sku)
+
+head(trans3@itemInfo)
+apply(trans3@itemInfo[,2],1:2, function(x){
+  return (Sku_category[which(Sku_category[,1] %in% x),2])
+  
+}
+)
+Sku_category$manual_categories <- as.character(Sku_category$manual_categories)
+
+trans3@itemInfo[-which(trans3@itemInfo$category %in% Sku_category$sku), ]<- NA
+trans3@itemInfo <- na.omit(trans3@itemInfo)
+
+for ( i in 1:nrow(trans3@itemInfo)){
+  holder <-  which(Sku_category$sku %in% trans3@itemInfo$labels[i])
+  trans3@itemInfo$category[i] <- Sku_category$manual_categories[holder]
+}
+head(trans3@itemInfo)
