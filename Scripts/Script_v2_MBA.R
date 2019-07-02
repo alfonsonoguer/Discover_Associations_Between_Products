@@ -6,7 +6,7 @@ pacman::p_load(dplyr,tidyr,plyr,ggplot2,caret,
 # Data --------------------------------------------------------------------
 
 items <- read.csv(file = "Data/lineitems.csv", sep = ";")
-{}
+
 # items: contains the information of all the products for each order:
 # individual id inside every order id, the order id, product quantity for every
 # product in each order id, the Stock Keeping Unit or sku, the unit price and 
