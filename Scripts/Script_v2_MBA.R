@@ -79,7 +79,6 @@ hopethisworks <- dcast(data = tospread, id_order ~ clasifier)
 
 names(hopethisworks)[-1] <- names(transactions)
 
-
 # continuar con mi vida Epic 2 ------------------------------------------------
 
 trans2<-read.transactions("Data/trans2.csv",format = "basket" , sep = ",")
@@ -347,3 +346,11 @@ trans4@itemInfo<- testmerge
 # we generate rules aggregated by what we want
 Rulesaggtrans4 <- apriori (aggregate(trans4, "category_brand"),
                            parameter = list(supp = 0.002, conf = 0.5))
+
+
+plot<-ggplot(data=testmerge , aes(x=manual_categories, fill= manual_categories)) + 
+  geom_bar()
+  plotly::ggplot(data=testmerge , aes(x=manual_categories, fill= manual_categories)) + 
+    geom_bar()
+
+  
