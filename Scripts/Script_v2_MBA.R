@@ -29,7 +29,6 @@ transactions <- transactions[-1,]
 
 
 
-
 # Coments -----------------------------------------------------------------
 
 #  by analizing the data, and speaking with the client, the only transactions
@@ -40,46 +39,26 @@ transactions <- transactions[-1,]
 
 # Prepocess ---------------------------------------------------------------
 
+# now we filter down the items to the completed orders.
 
 orders_completed<- orders[orders$state == "Completed",] 
 
 items$unit_price <- as.numeric(items$unit_price)
 
-# now we filter down the items to the completed orders.
 
-benefit <- items %>% group_by(sku) %>% mutate(product_quantity*unit_price)
+# testing how to use the summaryze/mutate functions on a gruop by
+# benefit <- items %>% group_by(sku) %>% summarize(sku,benefit = 
+                                                # product_quantity*unit_price)
+
 
 itemsorders2plus <- items %>% group_by(id_order) %>% filter(n()>1)
 
 itema2plusinorderscompl <- itemsorders2plus[itemsorders2plus$id_order %in% 
                                               orders_completed$id_order,]
 
-tospread <- select(itema2plusinorderscompl, id_order, sku)
-tospread$number <-NA
-numberofitems <- tospread %>%
-  group_by(id_order) %>%
-  filter(n()>1) %>%
-  summarise(n=n())
-numberofitems <- as.data.frame(numberofitems)
-# contamos las apariciones
-for(i in numberofitems$id_order){
-  # which(tospread %>% filter( id_order == 246018) )
-  # hit a block
-  tospread[tospread$id_order == i, "number"] <- 
-    c(1:numberofitems[which(numberofitems$id_order == i),2])
-  
-}
 
 
-
-
-names(tospread) <- c("id_order", "value", "clasifier")
-
-hopethisworks <- dcast(data = tospread, id_order ~ clasifier)
-
-names(hopethisworks)[-1] <- names(transactions)
-
-# continuar con mi vida Epic 2 ------------------------------------------------
+# Epic 2 apriory, rules and transaction matrix ------------------------------
 
 trans2<-read.transactions("Data/trans2.csv",format = "basket" , sep = ",")
 
@@ -109,20 +88,23 @@ plot(RulesName, method = "two-key plot")
 
 inspectDT(RulesName)
 
-# Epic 3 categories -------------------------------------------------------
+# Epic 3 we ad categories to the transaction matrix -------------------------
 
+# we dont want to tamper with the previous results so we re-read the data.
 trans3 <- read.transactions("Data/trans2.csv",format = "basket" , sep = ",")
-
 Sku_category<-read.csv("Data/sku_category.csv")
+
+# we could do the same substracting the first 3 characters of the sku instead
+# of reading a new CSV
 Sku_brand<-read.csv("Data/Brands.csv",sep = ";")
 head(Sku_category)
 head(Sku_brand)
 Sku_brand<-unique(Sku_brand)
-
 nrow(Sku_category)
 nrow(Sku_brand)
 
-
+# we make a new dataframe with all the relevant information of the 3 CSV
+# we have read previously
 skus <- merge(x = Sku_category, y = unique(Sku_brand), by= "sku",
               all.x = TRUE)
 
@@ -130,12 +112,17 @@ skus <- merge(x = Sku_category, y = unique(Sku_brand), by= "sku",
 
 table(skus$sku %in% trans3@itemInfo$labels)
 skus <- skus[unique(skus$sku), ]
-skus <- unite(skus,2:3,col = "category_brand",remove = FALSE)
 
+# we make a new colum "brand_category" for more granularity.
+
+skus <- unite(skus,2:3,col = "category_brand",remove = FALSE)
+# we filter the skus down to only the ones of the transacction matrix,
+# we just dont care about all the others.
 testmerge <- merge(x = skus, y = trans3@itemInfo, by.x= "sku",by.y = "labels",
               all.y = TRUE)
 
-# apply(testlevel, 2, function(x){levels(x)})
+# we change the na to other to do that we need to change the factors to char 
+# and because we like to have the categories as factors we turnit back
 testmerge <- testmerge <- apply(testmerge, 2, as.character)
 testmerge[is.na(testmerge)]<-"other"
 apply(testmerge,2,as.factor)
@@ -143,85 +130,7 @@ testmerge <- as.data.frame(testmerge)
 names(testmerge)[1] <- names(trans3@itemInfo)[1]
 
 
-
-trans4 <- trans3
-
-trans4@itemInfo<- testmerge
-
-
-Rulesaggtrans4 <- apriori (aggregate(trans4, "category_brand"),
-                       parameter = list(supp = 0.002, conf = 0.5))
-
-Rules4agregated <- aggregate(RulesName4, "category_brand")
-  
-table(trans3@itemInfo$labels %in% skus$sku)
-table(skus$sku %in% trans3@itemInfo$labels)
-# trans3@itemInfo$category <- NA
-# 
-# holder <- 0
-
-# for ( i in 1:nrow(trans3@itemInfo)){
-#   holder <-  which(Sku_brand$sku %in% trans3@itemInfo$labels[i])
-#   if(length(holder)==0){
-#     holder <- "other"
-#   }
-#   trans3@itemInfo$category[i] <- Sku_category$manual_categories[holder]
-# }
-
-
-# trans3@itemInfo$labels <- as.factor(trans3@itemInfo$labels)
-
-
-# which ( Sku_category$sku == "SPH0016" )
-
-names(Sku_category)[1] <- "labels"
-names(Sku_brand)[1] <- "labels"
-# temporaryDF <- trans3@itemInfo
-# nrow(Sku_brand)
-nrow(trans3@itemInfo)
-salidamerge <- merge(x = trans3@itemInfo,
-                         y = unique(Sku_brand), by= "labels",all.x = TRUE,)
-
-trans2@itemInfo[2103,]
-
-
-df<- trans3@itemInfo
-
-df$labels <- substr(df$labels, 0, 3)
-nrow(df)
-
-trans3@itemInfo <- df
-nrow(trans3@itemInfo) - nrow(trans2@itemInfo)
-
-# othercategories <- as.factor("Other brands")
- nrow(trans3@itemInfo)
-
-NAposition <- which(is.na(trans3@itemInfo$brand))
-na.omit(trans3@itemInfo)
-DF <- trans3@itemInfo[NAposition, ] 
-DF[,2] <- "Other brands"  
-
-head(trans3@itemInfo)
-# failed miserably
-# apply(trans3@itemInfo[,2],1:2, function(x){
-#   return (Sku_category[which(Sku_category[,1] %in% x),2])
-#   
-# }
-# )
-# Sku_category$manual_categories<-as.character(Sku_category$manual_categories)
-
-# trans3@itemInfo[-which(trans3@itemInfo$category %in%
-#                 Sku_category$sku), ]<- NA
-# trans3@itemInfo <- na.omit(trans3@itemInfo)
-
-# for ( i in 1:nrow(trans3@itemInfo)){
-#   holder <-  which(Sku_category$sku %in% trans3@itemInfo$labels[i])
-#   if(length(holder)==0){
-#     holder <- "other"
-#     }
-#   trans3@itemInfo$category[i] <- Sku_category$manual_categories[holder]
-# }
-# head(trans3@itemInfo)
+# playing with aggregate and sort and subset 
 
 trans3agregated <- aggregate(trans3,by = "labels")
 
@@ -250,17 +159,43 @@ inspect(Rules2agregated)
 
 inspect(Rules2agregated)
 
-# funcion para mostrar las reglas que nos interesan -----------------------
+
+
+# we work with a diferent transaction matrix because we dont want to mess with 
+# the "original" data
+trans4 <- trans3
+
+trans4@itemInfo<- testmerge
+
+# this is the best way i have fount to obtain 
+# the rules aggreagated by "something"
+
+Rulesaggtrans4 <- apriori (aggregate(trans4, "category_brand"),
+                           parameter = list(supp = 0.002, conf = 0.5))
+
+Rules4agregated <- aggregate(RulesName4, "category_brand")
+
+
+
+
+# Function for showing rules -----------------------
+
+# its kinda useless because later I found that 
+# ruleExplorer does this more completely and dinamically
+
+# working out what i want the function to do before y make the function
+
 
 # subset(Rules2agregated, in.out %in% category)
 # inspect(sort(subset(Rules2agregated, in.out %in% category),
 #               decreasing = TRUE, na.last = NA, by = "support")
         # )
 
-subsetedrules <- subset(Rules2agregated, rhs %in% "app")
-sortedrules <- sort(subsetedrules, decreasing = TRUE,
-                    na.last = NA, by = "confidence")
-inspect(head(sortedrules,5))
+
+# subsetedrules <- subset(Rules2agregated, rhs %in% "app")
+# sortedrules <- sort(subsetedrules, decreasing = TRUE,
+#                     na.last = NA, by = "confidence")
+# inspect(head(sortedrules,5))
 
 
 toprules<- function(rules,category,in_or_out,rules_amount){
@@ -287,7 +222,7 @@ toprules<- function(rules,category,in_or_out,rules_amount){
 
 
 
-# epic4 -------------------------------------------------------------------
+# epic4 redundant I added to the epic 3 because they were complementary -------
 
 
 trans4 <- read.transactions("Data/trans2.csv",format = "basket" , sep = ",")
@@ -348,9 +283,11 @@ Rulesaggtrans4 <- apriori (aggregate(trans4, "category_brand"),
                            parameter = list(supp = 0.002, conf = 0.5))
 
 
-plot<-ggplot(data=testmerge , aes(x=manual_categories, fill= manual_categories)) + 
+plot<-ggplot(data=testmerge , aes(x=manual_categories,
+                                  fill= manual_categories)) + 
   geom_bar()
-  plotly::ggplot(data=testmerge , aes(x=manual_categories, fill= manual_categories)) + 
+  plotly::ggplot(data=testmerge , aes(x=manual_categories,
+                                      fill= manual_categories)) + 
     geom_bar()
 
   
